@@ -31,36 +31,38 @@ export const Landing = () => {
     const params = hooks.useLocation();
     const responseSearch = params && params.search && queryString.parse(params.search);
     const responseHash = params && params.hash && queryString.parse(params.hash);
-    const accessToken = responseHash && responseHash.access_token;
+    const incomingToken = responseHash && responseHash.access_token;
 
-    const tokenNeeded = !token || (accessToken && state !== responseHash.state);
+    const invalidIncomingToken = incomingToken && state !== responseHash.state;
 
     const nextStep = () => history.push("/setup");
 
     // check the response was good
-    if (accessToken && state !== responseHash.state) {
-        // returned token didn't match the token we have saved, likely the original API request didn't originate from this site
+    if (invalidIncomingToken) {
+        // returned token didn't match the token we have saved, likely the original authorise request didn't originate from this site
+        // TODO replace this with a notification of some sort
         console.error("Spotify state token mismatch");
     } else if (!isEmpty(responseSearch.error)) {
         // there was an error in the OAuth flow, the user probably declined the permissions
+        // TODO replace this with a notification of some sort
         console.info("User declined permissions");
     }
 
     useEffect(() => {
         // save incoming token with expiration time
-        if (accessToken !== token && !isEmpty(accessToken)) {
+        if (incomingToken !== token && !isEmpty(incomingToken)) {
             // a new token has just been received
-            dispatch(storeToken(accessToken, Date.now() + (responseHash.expires_in * 1000)));
+            dispatch(storeToken(incomingToken, Date.now() + (responseHash.expires_in * 1000)));
             //redirect the user to the next page
             nextStep();
         }
-    }, [accessToken]);
+    }, [incomingToken]);
 
     return (
         <Fragment>
-            {tokenNeeded
-                ? <SpotifyTokenButton/>
-                : <Button onClick={nextStep}>{t("landing.start")}</Button>}
+            {token
+                ? <Button onClick={nextStep}>{t("landing.start")}</Button>
+                : <SpotifyTokenButton/>}
         </Fragment>
     );
 };
